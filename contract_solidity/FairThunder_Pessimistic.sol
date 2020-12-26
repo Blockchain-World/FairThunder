@@ -58,9 +58,9 @@ contract FairThunderPessimistic {
     // Check if correct number (i.e., ctr) of sub-keys can be recovered
     function validateRKeys(uint _n, uint _ctr, uint[] memory _erk_indexes) public pure returns (bool) {
         if ((_n == _ctr) && (_erk_indexes.length == 1) && (_erk_indexes[0] == 0)) {
-            // (n == ctr) shows that the deliverer delivers all the chunks
-            // (erk.length == 1) shows that the provider reveals one key
-            // (erk[0].position == 0) shows  that the revealed key is the root key
+            // (_n == _ctr) means that the deliverer delivers all the chunks
+            // (_erk_indexes.length == 1) means that the provider reveals one key
+            // (_erk_indexes[0] == 0) means that the revealed key is the root key
             // which is capable of recovering all the sub-keys for chunks
             return true;
         }
