@@ -36,7 +36,7 @@ library FTU {
         uint posIden; // the binary bit indicating the position
     }
     
-    // functions for signature verification
+    // Functions for signature verification
     function splitSignature(bytes memory sig) internal pure returns (uint8 v, bytes32 r, bytes32 s){
         require(sig.length == 65);
         assembly {

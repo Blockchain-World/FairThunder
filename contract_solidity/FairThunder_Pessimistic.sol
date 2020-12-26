@@ -18,23 +18,23 @@ contract FairThunderPessimistic {
     
     address payable public provider;
     
-    // the merkle root of the content m
+    // The merkle root of the content m
     bytes32 root_m;
-    // the number of content chunks
+    // The number of content chunks
     uint public n;
-    // the number (counter) of delivered chunks
+    // The number (counter) of delivered chunks
     uint public ctr;
     
     BN128Curve.G1Point vpk_consumer;
     
-    // the number of sub-chunks (i.e, 32bytes) included in a content chunk, namely chunkLength = chunk_size / 32 bytes
-    uint constant chunkLength = 2;
+    // The number of sub-chunks (i.e, 32bytes) included in a content chunk
+    uint constant chunkLength = XXX;
 
     constructor () payable public {
         provider = msg.sender;
     }
     
-    // receive common parameters from FairThunder optimistic contract 
+    // Receive common parameters from FairThunder optimistic contract 
     function onChainParams(uint _n, uint _ctr, bytes32 _root_m, BN128Curve.G1Point memory _vpk_consumer) public {
         n = _n;
         ctr = _ctr;
@@ -55,7 +55,7 @@ contract FairThunderPessimistic {
         return y;
     }
     
-    // check if correct number (i.e., ctr) of sub-keys can be recovered
+    // Check if correct number (i.e., ctr) of sub-keys can be recovered
     function validateRKeys(uint _n, uint _ctr, uint[] memory _erk_indexes) public pure returns (bool) {
         if ((_n == _ctr) && (_erk_indexes.length == 1) && (_erk_indexes[0] == 0)) {
             // (n == ctr) shows that the deliverer delivers all the chunks
@@ -89,7 +89,8 @@ contract FairThunderPessimistic {
                 delete chunks_index[x-(_n-1)];
             }
         }
-        // delete will only set the value as default, and will not remove the place
+        // Delete will only set the value as default, and will not remove the place
+        // So we need to check each position in chunks_index
         for(uint y = 0; y < _ctr; y++) {
             if (chunks_index[y] != 0) {
                 return false;
@@ -130,23 +131,23 @@ contract FairThunderPessimistic {
         return BN128Curve.g1add(_B, BN128Curve.g1mul(_c_2, _C));
     }
     
-    function checkOnchainErk(uint _j, FTU.SubmittedERK[] memory _st_erk, FTU.ERK[] memory _erk) public pure returns (bool) {
+    function check_onchain_erk(uint _j, FTU.SubmittedERK[] memory _st_erk, FTU.ERK[] memory _erk) public pure returns (bool) {
         bytes32 erk_hash_submitted = "";
         erk_hash_submitted = keccak256(abi.encodePacked(erk_hash_submitted, _st_erk[0].C1_X, _st_erk[0].C1_Y, _st_erk[0].C2_X, _st_erk[0].C2_Y, _st_erk[1].C1_X, _st_erk[1].C1_Y, _st_erk[1].C2_X, _st_erk[1].C2_Y));
-        // ensure that submitted erk hash == erk hash on-chain
+        // Ensure that the submitted erk hash ==  the erk hash on-chain
         return (erk_hash_submitted == _erk[_j].erk_hash);
     }
     
     // It verifies that the item in erk can decrypt to the corresponding item in rk
-    //  _i_j_steps: [uint _j, uint _step1, _step2]
+    //  _i_j_steps: [uint _i, uint _j, uint _step1, uint _step2]
     //     _st_erk: [[c1.X, c1.Y, c2.X, c2.Y], [c1.X, c1.Y, c2.X, c2.Y], ...]
-    //      _st_rk: [[1, "0x432c9a33c55dbad4bbbe8a7317785b6d"], [1, "0x8aa45e9d0c87ef2f5a3e5526a20a6b5c"], ...]
+    //      _st_rk: [[1, "0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"], [1, "0xXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"], ...]
     // _vpke_proof: [[A.X, A.Y, B.X, B.Y, Z] , [A.X, A.Y, B.X, B.Y, Z], ...]
     function verify_PKE(uint[] memory _i_j_steps, FTU.SubmittedERK[] memory _st_erk, FTU.SubmittedRK[] memory _st_rk, FTU.VPKEProof[] memory _vpke_proof)  public view returns(bool) {
         bool res = true;
-        // just need one element in KT, which contains two 128-bit hash value, and in total 256 bits hash value
+        // Just need one element in KT, which contains two 128-bit hash value, and in total 256 bits hash value
         for (uint i = 0; i < 2; i++) {
-            // uint C = compute_nizk_challenge(A, B, c_1, c_2, _st_rk.value_first);
+            // uint C = compute_nizk_challenge(A, B, c_1, c_2, _st_rk.value);
             uint C = compute_nizk_challenge(BN128Curve.G1Point(_vpke_proof[i].A_X, _vpke_proof[i].A_Y), BN128Curve.G1Point(_vpke_proof[i].B_X, _vpke_proof[i].B_Y),
             BN128Curve.G1Point(_st_erk[i].C1_X, _st_erk[i].C1_Y), BN128Curve.G1Point(_st_erk[i].C2_X, _st_erk[i].C2_Y), _st_rk[i].value);
             uint[] memory _steps_C_Z = new uint[](3);
@@ -168,12 +169,12 @@ contract FairThunderPessimistic {
     }
     
     function validateSig(uint _i, bytes32[] memory _c_i, bytes memory _signature_i_P) public view returns (bool){
-        // recreates chunk cipher hash
+        // Recreate chunk cipher hash
         bytes32 h = _c_i[0];
         for (uint i = 1; i < chunkLength; i++) {
             h = keccak256(abi.encodePacked(h, _c_i[i]));
         }
-        // recreates the signed message 
+        // Recreate the signed message 
         bytes32 invalid_chunk = FTU.prefixed(keccak256(abi.encodePacked(_i, provider, h)));
         if (FTU.recoverSigner(invalid_chunk, _signature_i_P) == provider) {
             return true;
@@ -248,26 +249,26 @@ contract FairThunderPessimistic {
     }
     
     function validatePoM(uint[] memory _i_j_steps, bytes32[] memory _c_i, bytes memory _signature_i_P, bytes32 _m_i_hash, FTU.MerkleProof[] memory _merkleProof, FTU.SubmittedERK[] memory _st_erk, FTU.ERK[] memory _erk, FTU.SubmittedRK[] memory _st_rk, FTU.VPKEProof[] memory _vpke_proof) public view returns (bool) {
-        // only one item in KT is needed, which contains two parts and each serves for 128-bit, in total 256 bits (hash value as encryption key)
+        // Only one item in KT is needed, which contains two parts and each part is 128-bit, and in total 256 bits (hash value as encryption key)
         assert((_st_erk.length == 2) && (_st_rk.length == 2) && (_vpke_proof.length == 2));
-        // for the same item in KT 
+        // For the same item in KT 
         assert((_st_erk[0].position == _st_erk[1].position) && (_st_rk[0].position == _st_rk[1].position) && (_vpke_proof[0].position == _vpke_proof[1].position)
               && (_st_erk[0].position == _st_rk[0].position) && (_st_rk[0].position == _vpke_proof[0].position));
-        // ensure j (i.e., the index of rk) is in the correct range
+        // Ensure j (i.e., the index of erk) is in the correct range
         if (_i_j_steps[1] >= 0 && _i_j_steps[1] < _erk.length) {
-            // verify that the submitted erk is consistent with its on-chain hash
-            if (checkOnchainErk(_i_j_steps[1], _st_erk, _erk)) {
-                // decryption verification
+            // Verify that the submitted erk is consistent with its on-chain hash
+            if (check_onchain_erk(_i_j_steps[1], _st_erk, _erk)) {
+                // Decryption verification
                 if (verify_PKE(_i_j_steps, _st_erk, _st_rk, _vpke_proof)) {
-                    // verify signature
+                    // Verify signature
                     if(validateSig(_i_j_steps[0], _c_i, _signature_i_P)){
-                        // verify the merkle tree proof
+                        // Verify the merkle tree proof
                         if(vrfyMTP(_merkleProof, _m_i_hash)){
-                            // revover the chunk key based on rk and key path
+                            // Revover the chunk key based on rk and key path
                             bytes32 chunk_key = recover_chunk_key(_i_j_steps[0], _st_rk);
-                            // decrypt the chunk using the recovered chunk key
+                            // Decrypt the chunk using the recovered chunk key
                             bytes32[chunkLength] memory decrypted_chunk = decrypt(_c_i, chunk_key);
-                            // proof of misbehavior
+                            // Proof of misbehavior
                             if (chunk_hash(decrypted_chunk) != _m_i_hash) {
                                 return true;
                             }
@@ -278,5 +279,4 @@ contract FairThunderPessimistic {
         }
         return false;
     }
-    
 }

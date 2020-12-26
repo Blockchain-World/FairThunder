@@ -32,7 +32,7 @@ contract FairThunderOptimistic{
     BN128Curve.G1Point public vpk_consumer;
     
     // Fairthunder pessimistic contract address
-    address payable public FTPContractAddress = 0x843036ABCd1e5Bc09cDc7c6CAb28C4D3d04BBeF1;
+    address payable public FTPContractAddress = XXXFTPContractAddressXXX;
     FairThunderPessimistic FTP = FairThunderPessimistic(FTPContractAddress);
     
     uint public timeout_round;
@@ -49,8 +49,8 @@ contract FairThunderOptimistic{
     // The number of content chunks
     uint public n = 0;
     
-    // The number of 32-byte sub-chunks: chunkSize / 32 (bytes32)
-    uint constant chunkLength = 2;
+    // The number of 32-byte sub-chunks in each content chunk: chunkSize / 32 (bytes32)
+    uint constant chunkLength = XXX;
     
     // The payment for delivery per chunk (wei)
     uint public payment_P = 0;
@@ -61,8 +61,7 @@ contract FairThunderOptimistic{
     // The number of delivered chunks
     uint public ctr = 0;
     
-    // The revealed encrypted elements' information for 
-    // recovering ctr (ctr<=n) sub-keys
+    // The revealed encrypted elements' information for recovering ctr (ctr<=n) sub-keys
     FTU.ERK[] erk;
     
     modifier allowed(address addr, state s){
@@ -94,8 +93,7 @@ contract FairThunderOptimistic{
         inState(state.started);
     }
     
-    // We omit the procedure that the provider choose one as the deliverer
-    // as this is an orthogonal problem
+    // We omit the procedure that the provider choose one as the deliverer as this is an orthogonal problem
     function join() public {
         require(round == state.started);
         deliverer = msg.sender;
@@ -163,7 +161,7 @@ contract FairThunderOptimistic{
     }
     
     // Phase III: Reveal 
-    
+
     // for example,
     //     position:    [1, 5], 1 and 5 are index in KT
     // sub-position:      1-0      1-1    5-0      5-1
@@ -180,7 +178,6 @@ contract FairThunderOptimistic{
         timeout_dispute = now + 20 minutes;
         inState(state.revealed);
     }
-    
     
     // In optimistic case, there is no dispute between the consumer and the provider
     function payout() payable public {
