@@ -147,7 +147,7 @@ def prove_PKE(cipher, sk, h):
                                              [g_hash, A_hash, B_hash, h_hash, c1_hash, c2_hash, m_hash]), byteorder='big') >> 160
         Z = x + sk*C
         print('>> Z: ', Z)
-        print("-----------------end of ", rk_key, "------------------")
+        print("----------------- end of ", rk_key, "------------------")
         pi = (A, B, Z)
         proof.update({rk_key: (m.get(rk_key), pi)})
     return proof

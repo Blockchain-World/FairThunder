@@ -3,11 +3,11 @@ import math
 from web3 import Web3
 from eth_account.messages import encode_defunct
 
-# The number of chunks of the content m
-n = 4
-# The number of delivered chunks
-ctr = 4
-# e.g., the first chunk
+# The number of chunks of the content m, e.g., 256
+n = XXX
+# The number of delivered chunks, e.g., 256
+ctr = XXX 
+# e.g., the first chunk is invalid
 invalid_chunk_index = 2
 
 # The private master key
@@ -78,8 +78,7 @@ def invalid_chunk_hash(content_cipher, chunk_index):
     h = invalid_chunk[0]
     for i in range(1, len(invalid_chunk)):
         h = bytes.hex(Web3.soliditySha3(['bytes32', 'bytes32'], [h, invalid_chunk[i]]))
-    result = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'bytes32'],
-                                        [chunk_index, Web3.toChecksumAddress(ft_provider_address), '0x'+h]))
+    result = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'bytes32'], [chunk_index, Web3.toChecksumAddress(ft_provider_address), '0x'+h]))
     return '0x' + result
 
 
