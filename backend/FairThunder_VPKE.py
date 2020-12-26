@@ -154,8 +154,8 @@ def prove_PKE(cipher, sk, h):
 
 
 if __name__ == "__main__":
-    consumer_address = "0x941D117FBF67DC60bEDad8B7Dd786B25b3259aad"
-    consumer_sk = 206202743888358501302336404397197755324
+    consumer_address = "XXX_CONSUMER_ADDRESS_XXX" # e.g., 0x941D117FBF67DC60bEDad8B7Dd786B25b3259aad
+    consumer_sk = "XXX_CONSUMER_SK_XXX" # e.g., 206202743888358501302336404397197755324
     consumer_pk = multiply(g, consumer_sk)
     print('>> consumer_pk: ', consumer_pk)
 
@@ -176,8 +176,8 @@ if __name__ == "__main__":
     print(">> erk: ", erk)
 
     # Test decryption
-    # plain = VDec(erk, consumer_sk)
-    # print(">>> Decrypt erk, plain: ", plain)
+    plain = VDec(erk, consumer_sk)
+    print(">>> Decrypt erk, plain: ", plain)
 
     proof = prove_PKE(erk, consumer_sk, consumer_pk)
     print(">> VPKE proof: ", proof)
