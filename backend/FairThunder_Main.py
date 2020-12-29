@@ -68,7 +68,8 @@ def content_encryption(_content, _key_group):
         _chunk_cipher = ['0'] * len(_content[i])
         for j in range(len(_content[i])):
             _temp_key = '0x' + bytes.hex(Web3.soliditySha3(['uint256', 'bytes32'], [j, _key_group[i]]))
-            _chunk_cipher[j] = hex(int(_temp_key, 16) ^ int(_content[i][j], 16))
+            # Xor may remove 0 of the most significant bits
+            _chunk_cipher[j] = "{0:#0{1}x}".format(int(_temp_key, 16) ^ int(_content[i][j], 16), 66)
         _content_cipher[i] = _chunk_cipher
     return _content_cipher
 
@@ -76,9 +77,12 @@ def content_encryption(_content, _key_group):
 def invalid_chunk_hash(content_cipher, chunk_index):
     invalid_chunk = content_cipher[chunk_index - 1]
     h = invalid_chunk[0]
-    for i in range(1, len(invalid_chunk)):
-        h = bytes.hex(Web3.soliditySha3(['bytes32', 'bytes32'], [h, invalid_chunk[i]]))
-    result = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'bytes32'], [chunk_index, Web3.toChecksumAddress(ft_provider_address), '0x'+h]))
+    if (len(invalid_chunk) == 1):
+        h = '0x' + bytes.hex(Web3.soliditySha3(['bytes32'], [h]))
+    else:
+        for i in range(1, len(invalid_chunk)):
+	    h = '0x' + bytes.hex(Web3.soliditySha3(['bytes32', 'bytes32'], [h, invalid_chunk[i]]))
+    result = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'bytes32'], [chunk_index, Web3.toChecksumAddress(ft_provider_address), h]))
     return '0x' + result
 
 

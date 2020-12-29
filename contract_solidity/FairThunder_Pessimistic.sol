@@ -171,8 +171,12 @@ contract FairThunderPessimistic {
     function validateSig(uint _i, bytes32[] memory _c_i, bytes memory _signature_i_P) public view returns (bool){
         // Recreate chunk cipher hash
         bytes32 h = _c_i[0];
-        for (uint i = 1; i < chunkLength; i++) {
-            h = keccak256(abi.encodePacked(h, _c_i[i]));
+        if (_c_i.length == 1) {
+            h = keccak256(abi.encodePacked(h));
+        } else {
+            for (uint i = 1; i < chunkLength; i++) {
+                h = keccak256(abi.encodePacked(h, _c_i[i]));
+            }
         }
         // Recreate the signed message 
         bytes32 invalid_chunk = FTU.prefixed(keccak256(abi.encodePacked(_i, provider, h)));
