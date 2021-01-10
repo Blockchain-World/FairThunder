@@ -3,13 +3,13 @@ import math
 from web3 import Web3
 from eth_account.messages import encode_defunct
 
-# FairThunder streaming mode test code
+# ----------- FairThunder Test Code (for Streaming) ----------------
 
 # The number of chunks of the content m
 n = XXX
 # The number of delivered chunks
 ctr = XXX
-# e.g., the first chunk is invalid
+# e.g., the second chunk is invalid
 invalid_chunk_index = 2
 
 # The private master key

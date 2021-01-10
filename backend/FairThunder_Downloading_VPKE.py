@@ -3,9 +3,7 @@ from py_ecc.bn128 import G1, add, multiply, curve_order, neg
 from py_ecc.bn128.bn128_field_elements import inv, field_modulus, FQ
 from web3 import Web3
 
-/**
-  * FairThunder verifiable decryption related implementations
-  */
+# ---------- FairThunder Verifiable Decryption (for Downloading) ---------
 
 # Use BN128 curve
 g = G1
