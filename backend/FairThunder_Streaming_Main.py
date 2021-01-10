@@ -158,10 +158,11 @@ if __name__ == '__main__':
     root_m = MT[0]
     print('>> root_m: ', root_m)
     MTP = generate_merkle_tree_proof(MT, n, invalid_chunk_index)
-    print('>> MTP: ', MTP)
+    print('>> merkle tree proof (MTP): ', MTP)
 
     # i is the chunk number in the receipt (i will be updated to contract as ctr)
     i = ctr
+
     # Generate the signature (in receipt) for deliverer
     deliverer_receipt_hash = bytes.hex(Web3.soliditySha3(['bytes', 'uint256', 'address', 'address', 'bytes32', 'address'],
                                            ["chunkReceipt".encode('utf-8'), i, Web3.toChecksumAddress(ft_consumer_address),
@@ -172,19 +173,21 @@ if __name__ == '__main__':
 
     # Generate the signature (in receipt) for provider
     provider_receipt_hash = bytes.hex(Web3.soliditySha3(['bytes', 'uint256', 'address', 'address', 'bytes32', 'address'],
-                          ["keyReceipt".encode('utf-8'), i, Web3.toChecksumAddress(ft_consumer_address),
-                           Web3.toChecksumAddress(ft_provider_address), root_m, Web3.toChecksumAddress(op_contract_address)]))
+                                          ["keyReceipt".encode('utf-8'), i, Web3.toChecksumAddress(ft_consumer_address),
+                                           Web3.toChecksumAddress(ft_provider_address), root_m, Web3.toChecksumAddress(op_contract_address)]))
     message_CP = encode_defunct(hexstr=provider_receipt_hash)
     signature_CP = web3.eth.account.sign_message(message_CP, private_key=ft_consumer_private_key)
     print(">> signature_CP (for provider's receipt): ", signature_CP)
-
+    
+    # The i-th chunk that is encrypted and signed by the provider
     print(">> content_cipher[1] (i.e., i=2): ", content_cipher[invalid_chunk_index - 1])
-    print(">> _m_i_hash: ", content_hash[invalid_chunk_index - 1])
     c_i_hash = invalid_chunk_hash(content_cipher, invalid_chunk_index)
-    print(">> invalid_chunk_hash (i.e., _c_i_hash): ", c_i_hash)
     invalid_chunk_message = encode_defunct(hexstr=c_i_hash)
     signature_invalid_chk = web3.eth.account.sign_message(invalid_chunk_message, private_key=ft_provider_private_key)
-    print(">> signature (for PoM) _c_i: ", signature_invalid_chk)
+    print(">> _c_i signature (PoM): ", signature_invalid_chk)
+
+    # The i-th leaf node in MT
+    print(">> _m_i_hash: ", content_hash[invalid_chunk_index - 1])
 
     # The provider may reveal a wrong key and sign it, which may lead to the PoM raised by the consumer
     orig_sub_key = key_group[invalid_chunk_index - 1]
@@ -193,5 +196,5 @@ if __name__ == '__main__':
     i_subkey_hash = '0x' + bytes.hex(Web3.soliditySha3(['uint256', 'bytes32'], [invalid_chunk_index, modified_sub_key]))
     invalid_subkey_message = encode_defunct(hexstr=i_subkey_hash)
     signature_invalid_key = web3.eth.account.sign_message(invalid_subkey_message, private_key=ft_provider_private_key)
-    print(">> _k_i signature (for PoM): ", signature_invalid_key)
+    print(">> _k_i signature (PoM): ", signature_invalid_key)
 
