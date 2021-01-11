@@ -33,8 +33,6 @@ public class SignVerify {
             System.out.println("Not available");
         }
 
-        // System.out.println("privKeyPath: " + privKeyPath);
-        // System.out.println("pubKeyPath: " + pubKeyPath);
         byte[] privBytes = Files.readAllBytes(Paths.get(privKeyPath));
         byte[] pubBytes = Files.readAllBytes(Paths.get(pubKeyPath));
 
@@ -82,19 +80,5 @@ public class SignVerify {
         String key = new String(base64.encode(pkcs8EncodedKeySpec.getEncoded()));
         return begin + "\n" + key + "\n" + end;
     }
-
-//    public static void main(String[] args) {
-//        String message = "12345";
-//
-//        // SignVerify.generateSignature()
-//        try {
-//           byte[] signature = SignVerify.generateSignature(SignVerify.generateSignKeyPair().getPrivate(), message.getBytes());
-//            // System.out.println("Provider signature: " + new String(Base64.encodeBase64(signature)));
-//            System.out.println("Verify: " + SignVerify.verifySignature(SignVerify.generateSignKeyPair().getPublic(), message.getBytes(), signature));
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
 
 }

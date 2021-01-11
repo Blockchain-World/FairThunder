@@ -10,7 +10,6 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.util.CharsetUtil;
-import org.apache.commons.lang3.CharSet;
 
 
 public class ConsumerInitializer extends ChannelInitializer<SocketChannel> {

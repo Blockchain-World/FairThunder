@@ -6,6 +6,9 @@ import io.netty.channel.*;
 import io.netty.util.CharsetUtil;
 import org.apache.commons.codec.binary.Base64;
 
+/**
+ * Handling the communication between consumer and provider
+ */
 
 public class ConsumerBackendHandler extends ChannelInboundHandlerAdapter {
 
@@ -39,9 +42,9 @@ public class ConsumerBackendHandler extends ChannelInboundHandlerAdapter {
             // Therefore, one side communication (e.g., with the deliverer) is sufficient to estimate the delay
             // sig_i_CD <- Sign("receipt"||i||pk_C||pk_D, sk_C)
             String receiptPrefix = "receipt";
-            byte[] receiptSig = SignVerify.generateSignature(SignVerify.generateSignKeyPair("CONSUMER").getPrivate(),
-                    receiptPrefix.concat(parsedChunkKey[0]).concat(SignVerify.generateSignKeyPair("CONSUMER").getPublic().toString())
-                            .concat(SignVerify.generateSignKeyPair("DELIVERER").getPublic().toString()).getBytes());
+            byte[] receiptSig = SignVerify.generateSignature(SignVerify.generateSignKeyPair("CONSUMER").getPrivate(), receiptPrefix.concat(parsedChunkKey[0])
+                                                            .concat(SignVerify.generateSignKeyPair("CONSUMER").getPublic().toString())
+                                                            .concat(SignVerify.generateSignKeyPair("DELIVERER").getPublic().toString()).getBytes());
             String sig_i_CD = new String(Base64.encodeBase64(receiptSig));
 
             String receipt = receiptPrefix.concat(Config.SEPARATOR).concat(parsedChunkKey[0]).concat(Config.SEPARATOR).concat(sig_i_CD) + '\n';

@@ -8,7 +8,6 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.CharsetUtil;
 import org.apache.commons.codec.binary.Base64;
-
 import java.io.RandomAccessFile;
 
 
@@ -18,18 +17,16 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         // Chunk index
         int i = 1;
-        // Prepare fake content chunk: c_i
-        // method 1: small input:
+        // Prepare the content chunk: c_i
+        // Method 1: small input
         // String c_i = Utility.generateFakeBytes(Config.chunkSize);
-        //method 2: read from file
-        // ctx.writeAndFlush("Active");
+        // Method 2: read from file
         String c_i = "";
         RandomAccessFile randomAccessFile = null;
         long length = -1;
         try {
             randomAccessFile = new RandomAccessFile(Config.LOCATION, "r");
             randomAccessFile.seek(0);
-            // c_i = randomAccessFile.readUTF();
             c_i = randomAccessFile.readLine();
             length = randomAccessFile.length();
         } catch (Exception e) {
@@ -40,8 +37,7 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
             }
         }
 
-        // System.out.println(">> c_i: " + c_i);
-        // Prepare the signature (i.e., sig_{c_i} in deliver message) representing that c_i is signed by the provider
+        // Prepare the signature (i.e., sig_c_i in deliver message) representing that c_i is signed by the provider
         // sig_c_i <- Sign(i||c_i, sk_P)
         byte[] sig_c_i = SignVerify.generateSignature(SignVerify.generateSignKeyPair("PROVIDER").getPrivate(),
                 String.valueOf(i).concat(c_i).getBytes());
@@ -67,11 +63,6 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
         // Receive receipt from the consumer for the delivered (encrypted) chunk
         // Receipt: ("receipt", i, sig_i_CD), and sig_i_CD <- Sign("receipt"||i||pk_C||pk_D, sk_C)
         String[] parsedReceipt = msg.split(Config.SEPARATOR);
-
-//        System.out.println("parsedReceipt length: " + parsedReceipt.length);
-//        System.out.println("parsedReceipt[0]: " + parsedReceipt[0]);
-//        System.out.println("parsedReceipt[1]: " + parsedReceipt[1]);
-//        System.out.println("parsedReceipt[2]: " + parsedReceipt[2]);
 
         // Verify the signature of the receipt sent by consumer
         boolean receiptVerify = SignVerify.verifySignature(SignVerify.generateSignKeyPair("CONSUMER").getPublic(),
