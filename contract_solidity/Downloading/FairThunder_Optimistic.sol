@@ -52,10 +52,10 @@ contract FairThunderOptimistic{
     // The number of 32-byte sub-chunks in each content chunk: chunkSize / 32 (bytes32)
     uint constant chunkLength = XXX;
     
-    // The payment for delivery per chunk (wei)
+    // The payment for delivery per chunk
     uint public payment_P = 0;
     
-    // The payment for providing per chunk (wei)
+    // The payment for providing per chunk
     uint public payment_C = 0;
     
     // The number of delivered chunks
@@ -114,11 +114,11 @@ contract FairThunderOptimistic{
         inState(state.initiated);
     }
     
-    // Verify the PoD from the deliverer
-    function verifyPoD(uint _i, bytes memory _signature_C) allowed(deliverer, state.initiated) public returns (bool) {
+    // Verify the VFD proof from the deliverer
+    function verifyVFDProof(uint _i, bytes memory _signature_C) allowed(deliverer, state.initiated) public returns (bool) {
         require(_i <= n);
-        bytes32 PoD = FTU.prefixed(keccak256(abi.encodePacked(_i, consumer, msg.sender, root_m, this)));
-        if (FTU.recoverSigner(PoD, _signature_C) == consumer) {
+        bytes32 VFDProof = FTU.prefixed(keccak256(abi.encodePacked(_i, consumer, msg.sender, root_m, this)));
+        if (FTU.recoverSigner(VFDProof, _signature_C) == consumer) {
             ctr = _i; // update ctr
             return true;
         }
@@ -129,7 +129,7 @@ contract FairThunderOptimistic{
     function deliveredTimeout() payable public {
         require(now > timeout_delivered);
         require(ctr >= 0 && ctr <= n);
-        // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill getPoD() 
+        // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill verifyVFDProof() 
         // is executed (i.e., D claimed payment and update ctr)
         if ((ctr > 0) && (ctr <= n)) {
             if (ctr == n) {
@@ -146,7 +146,7 @@ contract FairThunderOptimistic{
     function delivered() payable allowed(consumer, state.initiated) public {
         require(now < timeout_delivered);
         require(ctr >= 0 && ctr <= n);
-        // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill getPoD()
+        // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill verifyVFDProof()
         // is executed (i.e., D claimed payment and update ctr)
         if ((ctr > 0) && (ctr <= n)) {
             if (ctr == n) {
