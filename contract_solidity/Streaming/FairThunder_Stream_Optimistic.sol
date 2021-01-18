@@ -23,7 +23,7 @@ contract FairThunderStreamingOptimistic{
     uint public timeout_receive; // timer for confirming that C receives all or partial chunks
     
     // Fairthunder pessimistic contract address (for streaming)
-    address payable public FTSPContractAddress = 0x6512056fDBDC7659BD86fdD6F8Bb3b7fB713CE33;
+    address payable public FTSPContractAddress = XXX_FTSPContractAddress_XXX;
     FairThunderStreamingPessimistic FTSP = FairThunderStreamingPessimistic(FTSPContractAddress);
 
     enum state {started, joined, ready, initiated, received, delivered, revealed, sold, not_sold}
@@ -133,7 +133,7 @@ contract FairThunderStreamingOptimistic{
     }
     
     // Verify the receipt from the deliverer
-    function delivered(bytes memory _signature_CD, uint _i) public {
+    function claimDelivery(bytes memory _signature_CD, uint _i) public {
         require(paid_for_delivery == false);
         require(now < timeout_finish);
         require(msg.sender == deliverer);
@@ -157,7 +157,7 @@ contract FairThunderStreamingOptimistic{
     }
     
     // Verify the receipt from the provider
-    function revealed(bytes memory _signature_CP, uint _i) public {
+    function claimRevealing(bytes memory _signature_CP, uint _i) public {
         require(paid_for_revealing == false);
         require(now < timeout_finish);
         require(msg.sender == provider);
