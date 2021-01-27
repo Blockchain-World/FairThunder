@@ -188,14 +188,14 @@ if __name__ == '__main__':
     # i is the chunk number in the receipt (i will be updated to contract as ctr)
     i = ctr
     # Generate signature for deliverer
-    PoD_hash = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'address', 'bytes32', 'address'],
+    VFD_hash = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'address', 'bytes32', 'address'],
                                            [i, Web3.toChecksumAddress(ft_consumer_address),
                                             Web3.toChecksumAddress(ft_deliverer_address),
                                             root_m, Web3.toChecksumAddress(op_contract_address)]))
     # if encode_defunct(text=PoD_hash), it will add a \n64 as the header
-    PoD_message = encode_defunct(hexstr=PoD_hash)
-    signature_PoD = web3.eth.account.sign_message(PoD_message, private_key=ft_deliverer_private_key)
-    print(">> signature (for PoD): ", signature_PoD)
+    VFD_message = encode_defunct(hexstr=VFD_hash)
+    signature_VFD = web3.eth.account.sign_message(VFD_message, private_key=ft_deliverer_private_key)
+    print(">> signature (for VFD proof): ", signature_VFD)
 
     rk = reveal_keys(n, ctr, KT)
     print('>> rk: ', rk)
