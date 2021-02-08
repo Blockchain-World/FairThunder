@@ -3,10 +3,6 @@ pragma experimental ABIEncoderV2;
 
 import {FTSU} from "./FairThunder_Stream_Utility.sol";
 
-/**
- * FairThunder streaming optimistic mode.
- **/
-
 // Abstract 'FairThunderStreamingPessimistic' contract
 contract FairThunderStreamingPessimistic {
     function validatePoM(uint, bytes32[] memory, bytes memory, bytes32, bytes memory, bytes32, FTSU.MerkleProof[] memory, bytes32) public returns (bool);
@@ -23,10 +19,10 @@ contract FairThunderStreamingOptimistic{
     uint public timeout_receive; // timer for confirming that C receives all or partial chunks
     
     // Fairthunder pessimistic contract address (for streaming)
-    address payable public FTSPContractAddress = XXX_FTSPContractAddress_XXX;
+    address payable public FTSPContractAddress = "XXX_FT_Streaming_Pessimistic_Contract_Address_XXX";
     FairThunderStreamingPessimistic FTSP = FairThunderStreamingPessimistic(FTSPContractAddress);
 
-    enum state {started, joined, ready, initiated, received, delivered, revealed, sold, not_sold}
+    enum state {started, joined, ready, initiated, received, payingDelivery, payingRevealing, sold, not_sold}
     
     state public round;
 
@@ -39,23 +35,23 @@ contract FairThunderStreamingOptimistic{
     // The number of 32-byte sub-chunks: chunkSize / 32 (bytes32)
     uint constant chunkLength = 16;
     
-    // The payment for delivery per chunk (wei)
+    // The payment for delivery per chunk
     uint public payment_P = 0;
     
-    // The payment for providing per chunk (wei)
+    // The payment for providing per chunk
     uint public payment_C = 0;
     
     // The penalty fee in case P behaves dishonestly
     uint public payment_plt = 0;
     
-    // The number of delivered chunks
+    // The (finally determined) number of delivered chunks 
     uint public ctr = 0;
     
-    // It allows the deliverer can only be paid once
-    bool paid_for_delivery = false;
+    // The index of the receipt from deliverer
+    uint public ctr_D = 0;
     
-    // It allows the provider can only be paid once
-    bool paid_for_revealing = false;
+    // The index of the receipt from provider
+    uint public ctr_P = 0;
     
     function inState(state s) internal {
         round = s;
@@ -67,7 +63,7 @@ contract FairThunderStreamingOptimistic{
         timeout_round = now;
     }
     
-    // Phase I: Prepare (typically only need to be executed once)
+    // Phase I: Prepare
     function start(bytes32 _root_m, uint _n, uint _payment_P, uint _payment_C, uint _payment_plt) payable public {
         require(msg.sender == provider);
         assert(msg.value >= _payment_P*_n);
@@ -104,7 +100,7 @@ contract FairThunderStreamingOptimistic{
         inState(state.initiated);
     }
     
-    // The consumer actively confirm that received the delivered chunks and keys
+    // The consumer actively confirms the delivered chunks and keys are received
     function received() public {
         require(now < timeout_receive);
         require(round == state.initiated);
@@ -112,7 +108,7 @@ contract FairThunderStreamingOptimistic{
         selfdestruct(consumer);
     }
     
-    // The timeout_receive times out, even the customer does not confirm to the contract, the state will be set as "received"
+    // The timeout_receive times out, even though the customer does not confirm to the contract, the state will be set as "received"
     function receiveTimeout() public {
         require(now >= timeout_receive);
         require(round == state.initiated);
@@ -134,60 +130,53 @@ contract FairThunderStreamingOptimistic{
     
     // Verify the receipt from the deliverer
     function claimDelivery(bytes memory _signature_CD, uint _i) public {
-        require(paid_for_delivery == false);
         require(now < timeout_finish);
         require(msg.sender == deliverer);
-        require(round == state.initiated || round == state.received || round == state.revealed);
+        require(_i == n || round == state.received || round == state.payingRevealing);
+        require(_i > 0 && _i <= n);
         if (ctr == 0) {
             bytes32 deliverer_receipt_hash = FTSU.prefixed(keccak256(abi.encodePacked("chunkReceipt", _i, consumer, msg.sender, root_m, this)));
             if (FTSU.recoverSigner(deliverer_receipt_hash, _signature_CD) == consumer) {
-                assert(_i > 0 && _i <= n);
-                ctr = _i; // update ctr
+                ctr_D = _i; // update ctr_D
+                inState(state.payingDelivery);
             }
         }
-        if (ctr > 0 && ctr < n) {
-            deliverer.transfer(ctr * payment_P);
-            provider.transfer((n - ctr) * payment_P);
-        } else if (ctr == n) {
-            deliverer.transfer(n * payment_P);
-        }
-        paid_for_delivery = true;
-        inState(state.delivered);
-        // selfdestruct(deliverer);
     }
     
     // Verify the receipt from the provider
     function claimRevealing(bytes memory _signature_CP, uint _i) public {
-        require(paid_for_revealing == false);
         require(now < timeout_finish);
         require(msg.sender == provider);
-        require(round == state.initiated || round == state.received || round == state.delivered);
+        require(_i == n || round == state.received || round == state.payingDelivery);
+        require(_i > 0 && _i <= n);
         if (ctr == 0) {
             bytes32 provider_receipt_hash = FTSU.prefixed(keccak256(abi.encodePacked("keyReceipt", _i, consumer, msg.sender, root_m, this)));
             if (FTSU.recoverSigner(provider_receipt_hash, _signature_CP) == consumer) {
-                assert(_i > 0 && _i <= n);
-                ctr = _i; // update ctr
+                ctr_P = _i; // update ctr_P
+                inState(state.payingRevealing);
             }
         }
-        if (ctr > 0 && ctr < n) {
-            provider.transfer(ctr * payment_C);
-            consumer.transfer((n - ctr) * payment_C);
-        } else if (ctr == n) {
-            provider.transfer(n * payment_C);
-        }
-        paid_for_revealing = true;
-        inState(state.revealed);
-        // selfdestruct(provider);
     }
     
-    // The timeout_finish times out, the state will be set as "sold" or "not_sold"
+    // After the timeout_finish times out, determine the final ctr, and the state will be set as "sold" or "not_sold"
     function finishTimeout() public {
         require(now >= timeout_finish);
-        if (round == state.delivered || round == state.revealed) {
+        // Determine the final ctr = max{ctr_D, ctr_P}
+        if (ctr_D >= ctr_P) {
+            ctr = ctr_D;
+        } else {
+            ctr = ctr_P;
+        }
+        // Distribute payment to parties
+        deliverer.transfer(ctr * payment_P);
+        provider.transfer((n - ctr) * payment_P + ctr * payment_C);
+        consumer.transfer((n - ctr) * payment_C);
+        if (ctr > 0) {
             inState(state.sold);
         } else {
             inState(state.not_sold);
         }
+        selfdestruct(deliverer);
+        selfdestruct(provider);
     }
-    
 }
