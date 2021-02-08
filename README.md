@@ -9,4 +9,4 @@ For both `downloading` and `streaming` settings, the implementations are provide
 - This folder provides the code (implemented in Solidity 0.5.10+) of smart contract.
 
 ### streaming_round_demo
-- This folder provides the code (implemented in Java 1.8.0_275) and start script to test communication delay of a round in the FairThunder streaming setting. The experiment is conducted in both LAN and WAN.
+- This folder provides the code (implemented in Java 1.8.0_275) and starting script to test the latency of streaming a set of content chunks, i.e., multiple delivery rounds, in the FairThunder streaming setting. The experiment is conducted in both LAN and WAN.
