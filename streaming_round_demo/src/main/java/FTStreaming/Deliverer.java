@@ -13,7 +13,6 @@ import io.netty.handler.codec.Delimiters;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
-
 public class Deliverer {
 
     private static final StringDecoder DECODER = new StringDecoder();
@@ -46,3 +45,4 @@ public class Deliverer {
         }
     }
 }
+

@@ -85,7 +85,7 @@ public class ConsumerFrontendHandler extends SimpleChannelInboundHandler<String>
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        // Consumer connects with the provider
+        // System.out.println(">> Consumer connects with the provider ...");
         final Channel inboundChannel = ctx.channel();
 
         // Start the connection attempt
@@ -118,3 +118,4 @@ public class ConsumerFrontendHandler extends SimpleChannelInboundHandler<String>
     }
 
 }
+

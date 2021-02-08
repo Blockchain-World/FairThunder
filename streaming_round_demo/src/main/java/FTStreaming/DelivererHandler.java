@@ -10,20 +10,20 @@ import io.netty.util.CharsetUtil;
 import org.apache.commons.codec.binary.Base64;
 import java.io.RandomAccessFile;
 
-
 public class DelivererHandler extends SimpleChannelInboundHandler<String> {
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    public static int currentChunkIndex = 1;
+    public static long startTime = 0;
+    public static long tempTime = 0;
+
+    public static String prepareChunk() throws Exception {
         // Chunk index
-        int i = 1;
-        // Prepare the content chunk: c_i
-        // Method 1: small input
-        // String c_i = Utility.generateFakeBytes(Config.chunkSize);
-        // Method 2: read from file
+        int i = currentChunkIndex++;
+        // Prepare content chunk c_i
         String c_i = "";
         RandomAccessFile randomAccessFile = null;
         long length = -1;
+
         try {
             randomAccessFile = new RandomAccessFile(Config.LOCATION, "r");
             randomAccessFile.seek(0);
@@ -36,8 +36,8 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
                 randomAccessFile.close();
             }
         }
-
-        // Prepare the signature (i.e., sig_c_i in deliver message) representing that c_i is signed by the provider
+        
+        // Prepare the signature (i.e., sig_{c_i} in deliver message) representing that c_i is signed by the provider
         // sig_c_i <- Sign(i||c_i, sk_P)
         byte[] sig_c_i = SignVerify.generateSignature(SignVerify.generateSignKeyPair("PROVIDER").getPrivate(),
                 String.valueOf(i).concat(c_i).getBytes());
@@ -51,10 +51,15 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
         String sig_c_i_encoded = new String(Base64.encodeBase64(sig_c_i));
         String chunkContent = String.valueOf(i).concat(Config.SEPARATOR).concat(c_i).concat(Config.SEPARATOR)
                 .concat(sig_c_i_encoded).concat(Config.SEPARATOR).concat(sigD);
+        return chunkContent;
+    }
 
-        Utility.getStartTime();
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        String chunkContent = prepareChunk();
+        startTime = System.currentTimeMillis();
         // The deliverer sends out the (deliver) message (Step 1)
-        // We assume the receipt can be received before T_chunkReceipt times out
+        // We consider that the receipt can be received before T_chunkReceipt times out
         ctx.writeAndFlush(chunkContent + '\n');
     }
 
@@ -68,14 +73,22 @@ public class DelivererHandler extends SimpleChannelInboundHandler<String> {
         boolean receiptVerify = SignVerify.verifySignature(SignVerify.generateSignKeyPair("CONSUMER").getPublic(),
                 parsedReceipt[0].concat(parsedReceipt[1]).concat(SignVerify.generateSignKeyPair("CONSUMER").getPublic().toString())
                         .concat(SignVerify.generateSignKeyPair("DELIVERER").getPublic().toString()).getBytes(), Base64.decodeBase64(parsedReceipt[2]));
+
         if (receiptVerify) {
             // Print out the round delay
-            Utility.getEndTime();
+            tempTime = System.currentTimeMillis() - startTime + tempTime;
+            System.out.println("=> " + tempTime + " ms");
         } else {
             System.out.println("Failed!");
         }
-        System.out.println(">> Verify receipt: " + receiptVerify);
-        System.out.println("--- Done (for one-round communication) ---");
+        System.out.println("--- " + parsedReceipt[1] + " ----");
+        if (Integer.parseInt(parsedReceipt[1]) >= Config.CHUNKS) {
+            return;
+        } else {
+            String chunkContent = prepareChunk();
+            startTime = System.currentTimeMillis();
+            ctx.writeAndFlush(chunkContent + '\n');
+        }
     }
-
 }
+

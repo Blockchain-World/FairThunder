@@ -5,6 +5,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.codec.binary.Base64;
 
 
@@ -25,10 +26,12 @@ public class ProviderHandler extends ChannelInboundHandlerAdapter {
         boolean sigCVerify = SignVerify.verifySignature(SignVerify.generateSignKeyPair("CONSUMER").getPublic(),
                 parsedKeyRequest[0].concat(parsedKeyRequest[1]).concat(SignVerify.generateSignKeyPair("CONSUMER")
                         .getPublic().toString()).getBytes(), Base64.decodeBase64(parsedKeyRequest[2]));
-        System.out.println(">> sigCVerify: " + sigCVerify);
+        
+        System.out.println("==> " + parsedKeyRequest[1]);
         if (!sigCVerify) {
             throw new Exception("Verify consumer's signature failed!");
         }
+        ReferenceCountUtil.release(msg);
     }
 
     @Override
@@ -45,3 +48,4 @@ public class ProviderHandler extends ChannelInboundHandlerAdapter {
         ctx.writeAndFlush(Unpooled.copiedBuffer(keyResponse, CharsetUtil.UTF_8));
     }
 }
+

@@ -2,6 +2,7 @@ package FTStreaming;
 
 public class Config {
 
+    // Change to corresponding role, i.e., PROVIDER, DELIVERER, CONSUMER
     public static final String ROLE = "PROVIDER";
 
     // Provider's IP address and port
@@ -15,6 +16,9 @@ public class Config {
     // Consumer's IP address and port
     public static final String CONSUMER_ADDRESS = "XXX_CONSUMER_ADDRESS_XXX";
     public static final int CONSUMER_PORT = "XXX_CONSUMER_PORT_XXX";
+
+    // Total number of content chunks in streaming
+    public static final int CHUNKS = 512;
 
     // Max Frame Length
     public static final int FRAMELENGTH = 4 * 1024 * 1024; // 4M

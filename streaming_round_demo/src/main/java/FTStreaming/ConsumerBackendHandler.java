@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.codec.binary.Base64;
 
 /**
@@ -34,7 +35,7 @@ public class ConsumerBackendHandler extends ChannelInboundHandlerAdapter {
         boolean sigPVerify = SignVerify.verifySignature(SignVerify.generateSignKeyPair("PROVIDER").getPublic(),
                 parsedChunkKey[0].concat(parsedChunkKey[1]).getBytes(), Base64.decodeBase64(parsedChunkKey[2]));
 
-        System.out.println("sigPVerify: " + sigPVerify);
+        System.out.println("==> " + parsedChunkKey[0]);
 
         if (sigPVerify) {
             // Prepare receipt and send back to the deliverer (by consumer) for requesting the next chunk (Step 5.a)
@@ -42,9 +43,9 @@ public class ConsumerBackendHandler extends ChannelInboundHandlerAdapter {
             // Therefore, one side communication (e.g., with the deliverer) is sufficient to estimate the delay
             // sig_i_CD <- Sign("receipt"||i||pk_C||pk_D, sk_C)
             String receiptPrefix = "receipt";
-            byte[] receiptSig = SignVerify.generateSignature(SignVerify.generateSignKeyPair("CONSUMER").getPrivate(), receiptPrefix.concat(parsedChunkKey[0])
-                                                            .concat(SignVerify.generateSignKeyPair("CONSUMER").getPublic().toString())
-                                                            .concat(SignVerify.generateSignKeyPair("DELIVERER").getPublic().toString()).getBytes());
+            byte[] receiptSig = SignVerify.generateSignature(SignVerify.generateSignKeyPair("CONSUMER").getPrivate(),
+                    receiptPrefix.concat(parsedChunkKey[0]).concat(SignVerify.generateSignKeyPair("CONSUMER").getPublic().toString())
+                            .concat(SignVerify.generateSignKeyPair("DELIVERER").getPublic().toString()).getBytes());
             String sig_i_CD = new String(Base64.encodeBase64(receiptSig));
 
             String receipt = receiptPrefix.concat(Config.SEPARATOR).concat(parsedChunkKey[0]).concat(Config.SEPARATOR).concat(sig_i_CD) + '\n';
@@ -60,6 +61,7 @@ public class ConsumerBackendHandler extends ChannelInboundHandlerAdapter {
                 }
             });
         }
+        ReferenceCountUtil.release(msg);
     }
 
     @Override
