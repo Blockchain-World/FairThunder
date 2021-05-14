@@ -10,3 +10,5 @@ For both `downloading` and `streaming` settings, the implementations are provide
 
 ### streaming_round_demo
 - This folder provides the code (implemented in Java 1.8.0_275) and starting script to test the latency of streaming a set of content chunks, i.e., multiple delivery rounds, in the FairThunder streaming setting. The experiment is conducted in both LAN and WAN.
+
+Note: the contracts in this repository are used as a proof-of-concept, and are not audited for implementation bugs. Hence, they should be used with caution.

@@ -28,6 +28,9 @@ contract FairThunderStreamingOptimistic{
 
     // The merkle root of the content m
     bytes32 public root_m;
+
+    // the times of repeatable delivery
+    uint public theta = 0; 
     
     // The number of content chunks
     uint public n = 0;
@@ -41,8 +44,8 @@ contract FairThunderStreamingOptimistic{
     // The payment for providing per chunk
     uint public payment_C = 0;
     
-    // The penalty fee in case P behaves dishonestly
-    uint public payment_plt = 0;
+    // penalty fee to discourage the misbehavior of the provider
+    uint public payment_pf = 0;
     
     // The (finally determined) number of delivered chunks 
     uint public ctr = 0;
@@ -64,15 +67,16 @@ contract FairThunderStreamingOptimistic{
     }
     
     // Phase I: Prepare
-    function start(bytes32 _root_m, uint _n, uint _payment_P, uint _payment_C, uint _payment_plt) payable public {
+    function start(bytes32 _root_m, uint _theta, uint _n, uint _payment_P, uint _payment_C, uint _payment_pf) payable public {
         require(msg.sender == provider);
-        assert(msg.value >= _payment_P*_n);
+        assert(msg.value >= _theta*(_payment_P*_n+_payment_pf));
         assert(_payment_C >= _payment_P);
+        assert(_payment_pf >= _payment_C*_n/2); // the penalty fee is required to be proportional to the (n*payment_C) so the provider cannot delibrately low it
         root_m = _root_m;       // store root_m
+        theta = _theta;         // store theta
         n = _n;                 // store n
         payment_P = _payment_P; // store payment_P
         payment_C = _payment_C; // store payment_C
-        payment_plt = _payment_plt; // store payment_plt
         inState(state.started);
     }
     
@@ -93,6 +97,7 @@ contract FairThunderStreamingOptimistic{
     // Phase II: Stream
     function consume() payable public {
         assert(msg.value >= n*payment_C);
+        require(theta > 0);
         require(round == state.ready);
         consumer = msg.sender;         // store pk_C
         timeout_receive = now + 20 minutes; // start the timer T_receive
@@ -105,7 +110,6 @@ contract FairThunderStreamingOptimistic{
         require(now < timeout_receive);
         require(round == state.initiated);
         inState(state.received);
-        selfdestruct(consumer);
     }
     
     // The timeout_receive times out, even though the customer does not confirm to the contract, the state will be set as "received"
@@ -113,7 +117,6 @@ contract FairThunderStreamingOptimistic{
         require(now >= timeout_receive);
         require(round == state.initiated);
         inState(state.received);
-        selfdestruct(consumer);
     }
     
     // Resolve dispute during the streaming, and then if indeed misbehavior is detected, the state will be set as "received"
@@ -124,7 +127,6 @@ contract FairThunderStreamingOptimistic{
             // if the provider P indeed misbehaves, e.g., revealed a wrong key
             consumer.transfer(payment_plt);
             inState(state.received);
-            selfdestruct(consumer);
         }
     }
     
@@ -169,14 +171,27 @@ contract FairThunderStreamingOptimistic{
         }
         // Distribute payment to parties
         deliverer.transfer(ctr * payment_P);
-        provider.transfer((n - ctr) * payment_P + ctr * payment_C);
+        provider.transfer((n - ctr) * payment_P + ctr * payment_C + payment_pf);
         consumer.transfer((n - ctr) * payment_C);
         if (ctr > 0) {
             inState(state.sold);
         } else {
             inState(state.not_sold);
         }
-        selfdestruct(deliverer);
-        selfdestruct(provider);
     }
+
+    // when the protocol instance completes, reset to the ready state and receive other consumers' request (i.e., repeatable delivery)
+    function reset() public {
+        require(msg.sender == provider);
+        require(round == state.sold || round == state.not_sold);
+        ctr = 0;
+        ctr_D = 0;
+        ctr_P = 0;
+        timeout_receive = 0;
+        timeout_finish = 0;
+        theta = theta - 1;
+        consumer = 0x0000000000000000000000000000000000000000; // nullify consumer's address
+        inState(state.ready);
+    }
+
 }

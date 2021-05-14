@@ -45,6 +45,9 @@ contract FairThunderOptimistic{
 
     // The merkle root of the content m
     bytes32 public root_m;
+
+    // the times of repeatable delivery
+    uint public theta = 0;
     
     // The number of content chunks
     uint public n = 0;
@@ -57,6 +60,9 @@ contract FairThunderOptimistic{
     
     // The payment for providing per chunk
     uint public payment_C = 0;
+
+    // penalty fee to discourage the misbehavior of the provider
+    uint public payment_pf = 0;
     
     // The number of delivered chunks
     uint public ctr = 0;
@@ -82,10 +88,11 @@ contract FairThunderOptimistic{
     }
     
     // Phase I: Prepare (typically only need to be executed once)
-    function start(bytes32 _root_m, uint _n, uint _payment_P, uint _payment_C) payable public {
+    function start(bytes32 _root_m, uint _theta, uint _n, uint _payment_P, uint _payment_C, uint _payment_pf) payable public {
         require(msg.sender == provider);
-        assert(msg.value >= _payment_P*_n);
+        assert(msg.value >= _theta*(_payment_P*_n+_payment_pf));
         assert(_payment_C >= _payment_P);
+        assert(_payment_pf >= _payment_C*_n/2); // the penalty fee is required to be proportional to the (n*payment_C) so the provider cannot delibrately low it
         root_m = _root_m;       // store root_m
         n = _n;                 // store n
         payment_P = _payment_P; // store payment_P
@@ -107,6 +114,7 @@ contract FairThunderOptimistic{
     // Phase II: Deliver
     function consume(BN128Curve.G1Point memory _vpk_consumer) payable public {
         assert(msg.value >= n*payment_C);
+        require(theta > 0);
         require(round == state.ready);
         consumer = msg.sender;         // store pk_C
         vpk_consumer = _vpk_consumer;  // store vpk_consumer
@@ -185,22 +193,31 @@ contract FairThunderOptimistic{
         require(now > timeout_dispute);
         if((ctr > 0) && (ctr <= n)){
             if(ctr == n){
-                provider.transfer(payment_C*n);
+                provider.transfer(payment_C*n + payment_pf);
             }else{
-                provider.transfer(payment_C*ctr);
+                provider.transfer(payment_C*ctr + payment_pf);
                 consumer.transfer(payment_C*(n-ctr));
             }
             inState(state.sold);
-            selfdestruct(provider);
-            selfdestruct(consumer);
         }
+    }
+
+    // when the protocol instance completes, reset to the ready state and receive other consumers' request (i.e., repeatable delivery)
+    function reset() public {
+        require(msg.sender == provider);
+        require(round == state.sold || round == state.not_sold);
+        ctr = 0;
+        timeout_delivered = 0;
+        timeout_dispute = 0;
+        theta = theta - 1;
+        consumer = 0x0000000000000000000000000000000000000000; // nullify consumer's address
+        vpk_consumer = BN128Curve.G1Point(0, 0); // nullify consumer's verifiable decryption pk
+        inState(state.ready);
     }
     
     function refund() public {
-        consumer.transfer(n * payment_C);
+        consumer.transfer(n * payment_C + payment_pf);
         inState(state.not_sold);
-        selfdestruct(consumer);
-        selfdestruct(provider);
     }
     
     // Below is about dispute resolution
