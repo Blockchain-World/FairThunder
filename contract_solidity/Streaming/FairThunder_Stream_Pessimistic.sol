@@ -12,7 +12,7 @@ contract FairThunderStreamingPessimistic{
     address payable public provider;
 
     // The number of sub-chunks (i.e, 32bytes) included in a content chunk, namely chunkLength = chunk_size / 32 bytes
-    uint constant chunkLength = 16;
+    uint constant chunkLength = XXX;
     
     constructor () payable public {
         provider = msg.sender;

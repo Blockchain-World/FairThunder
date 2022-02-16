@@ -36,7 +36,7 @@ contract FairThunderStreamingOptimistic{
     uint public n = 0;
     
     // The number of 32-byte sub-chunks: chunkSize / 32 (bytes32)
-    uint constant chunkLength = 16;
+    uint constant chunkLength = XXX;
     
     // The payment for delivery per chunk
     uint public payment_P = 0;
@@ -46,6 +46,9 @@ contract FairThunderStreamingOptimistic{
     
     // penalty fee to discourage the misbehavior of the provider
     uint public payment_pf = 0;
+
+    // penalty flag
+    bool public plt = false;
     
     // The (finally determined) number of delivered chunks 
     uint public ctr = 0;
@@ -55,6 +58,9 @@ contract FairThunderStreamingOptimistic{
     
     // The index of the receipt from provider
     uint public ctr_P = 0;
+
+    // The start index (1-indexed) of request content
+    uint public a = 0;
     
     function inState(state s) internal {
         round = s;
@@ -77,6 +83,7 @@ contract FairThunderStreamingOptimistic{
         n = _n;                 // store n
         payment_P = _payment_P; // store payment_P
         payment_C = _payment_C; // store payment_C
+        payment_pf = _payment_pf; // store payment_pf
         inState(state.started);
     }
     
@@ -95,10 +102,12 @@ contract FairThunderStreamingOptimistic{
     }
     
     // Phase II: Stream
-    function consume() payable public {
-        assert(msg.value >= n*payment_C);
+    function consume(uint _a) payable public {
+        assert(msg.value >= (n - _a + 1) * payment_C);
         require(theta > 0);
+        require(_a >= 1 && _a <= n);
         require(round == state.ready);
+        a = _a;                        // store a
         consumer = msg.sender;         // store pk_C
         timeout_receive = now + 20 minutes; // start the timer T_receive
         timeout_finish = now + 30 minutes; // start the timer T_finish
@@ -122,10 +131,11 @@ contract FairThunderStreamingOptimistic{
     // Resolve dispute during the streaming, and then if indeed misbehavior is detected, the state will be set as "received"
     function PoM(uint _i, bytes32[] memory _c_i, bytes memory _signature_c_i, bytes32 _k_i, bytes memory _signature_k_i, bytes32 _m_i_hash, FTSU.MerkleProof[] memory _merkle_proof) public payable {
         require(now < timeout_receive);
+        require(_i >= a && _i <= n);
         require(round == state.initiated);
         if (FTSP.validatePoM(_i, _c_i, _signature_c_i, _k_i, _signature_k_i, _m_i_hash, _merkle_proof, root_m)) {
             // if the provider P indeed misbehaves, e.g., revealed a wrong key
-            consumer.transfer(payment_plt);
+            plt = true;
             inState(state.received);
         }
     }
@@ -134,12 +144,11 @@ contract FairThunderStreamingOptimistic{
     function claimDelivery(bytes memory _signature_CD, uint _i) public {
         require(now < timeout_finish);
         require(msg.sender == deliverer);
-        require(_i == n || round == state.received || round == state.payingRevealing);
-        require(_i > 0 && _i <= n);
+        require((_i >= a && _i <= n) || round == state.received || round == state.payingRevealing);
         if (ctr == 0) {
             bytes32 deliverer_receipt_hash = FTSU.prefixed(keccak256(abi.encodePacked("chunkReceipt", _i, consumer, msg.sender, root_m, this)));
             if (FTSU.recoverSigner(deliverer_receipt_hash, _signature_CD) == consumer) {
-                ctr_D = _i; // update ctr_D
+                ctr_D = _i - a + 1; // update ctr_D
                 inState(state.payingDelivery);
             }
         }
@@ -149,12 +158,11 @@ contract FairThunderStreamingOptimistic{
     function claimRevealing(bytes memory _signature_CP, uint _i) public {
         require(now < timeout_finish);
         require(msg.sender == provider);
-        require(_i == n || round == state.received || round == state.payingDelivery);
-        require(_i > 0 && _i <= n);
+        require((_i >= a && _i <= n) || round == state.received || round == state.payingDelivery);
         if (ctr == 0) {
             bytes32 provider_receipt_hash = FTSU.prefixed(keccak256(abi.encodePacked("keyReceipt", _i, consumer, msg.sender, root_m, this)));
             if (FTSU.recoverSigner(provider_receipt_hash, _signature_CP) == consumer) {
-                ctr_P = _i; // update ctr_P
+                ctr_P = _i - a + 1; // update ctr_P
                 inState(state.payingRevealing);
             }
         }
@@ -171,8 +179,13 @@ contract FairThunderStreamingOptimistic{
         }
         // Distribute payment to parties
         deliverer.transfer(ctr * payment_P);
-        provider.transfer((n - ctr) * payment_P + ctr * payment_C + payment_pf);
-        consumer.transfer((n - ctr) * payment_C);
+        if (plt) {
+            consumer.transfer((n - a + 1 - ctr) * payment_C + payment_pf);
+            provider.transfer((n - ctr) * payment_P + (ctr * payment_C));
+        } else {
+            provider.transfer((n - ctr) * payment_P + ctr * payment_C + payment_pf);
+            consumer.transfer((n - a + 1 - ctr) * payment_C);
+        }
         if (ctr > 0) {
             inState(state.sold);
         } else {
@@ -185,6 +198,7 @@ contract FairThunderStreamingOptimistic{
         require(msg.sender == provider);
         require(round == state.sold || round == state.not_sold);
         ctr = 0;
+        a = 0;
         ctr_D = 0;
         ctr_P = 0;
         timeout_receive = 0;

@@ -9,6 +9,8 @@ from eth_account.messages import encode_defunct
 n = XXX
 # The number of delivered chunks
 ctr = XXX
+# The start index (1-indexed) of request content
+a = XXX
 # e.g., the second chunk is invalid
 invalid_chunk_index = 2
 
@@ -160,8 +162,8 @@ if __name__ == '__main__':
     MTP = generate_merkle_tree_proof(MT, n, invalid_chunk_index)
     print('>> merkle tree proof (MTP): ', MTP)
 
-    # i is the chunk number in the receipt (i will be updated to contract as ctr)
-    i = ctr
+    # i is the chunk number in the receipt ((i-a+1) will be updated to contract as ctr)
+    i = XXX
 
     # Generate the signature (in receipt) for deliverer
     deliverer_receipt_hash = bytes.hex(Web3.soliditySha3(['bytes', 'uint256', 'address', 'address', 'bytes32', 'address'],

@@ -9,11 +9,13 @@ from eth_account.messages import encode_defunct
 n = XXX
 # The number of delivered chunks, e.g., 256
 ctr = XXX 
+# The start index (1-indexed) of request content
+a = XXX
 # e.g., the second chunk is invalid
 invalid_chunk_index = 2
 
-# The private master key
-mk = "XXX_PRIVATE_MASTER_KEY_XXX"
+# The hash of private master key
+mk_hash = "XXX_PRIVATE_MASTER_KEY_XXX"
 
 infura_url = "https://ropsten.infura.io/v3/XXXXXXXXX"
 web3 = Web3(Web3.HTTPProvider(infura_url))
@@ -88,23 +90,35 @@ def invalid_chunk_hash(content_cipher, chunk_index):
     return '0x' + result
 
 
-def gen_sub_keys(_n, _mk):
+def gen_sub_keys(_n, _mk_hash):
     KT = ['0'] * (2 * _n - 1)
-    KT[0] = '0x' + bytes.hex(Web3.soliditySha3(['bytes32'], [_mk]))
+    KT[0] = '0x' + bytes.hex(Web3.soliditySha3(['bytes32'], [_mk_hash]))
     for i in range(_n - 1):
         KT[2 * i + 1] = '0x' + bytes.hex(Web3.soliditySha3(['bytes32', 'uint256'], [KT[i], 0]))
         KT[2 * i + 2] = '0x' + bytes.hex(Web3.soliditySha3(['bytes32', 'uint256'], [KT[i], 1]))
     return KT
 
 
-def reveal_keys(_n, _ctr, _KT):
+def reveal_keys(_n, _a, _ctr, _mk_hash):
     rk = {}
     ind = [0] * _ctr
+    st = _n + _a - 2
+    _KT = gen_sub_keys(_n, _mk_hash)
     if _ctr == 1:
-        rk.update({_n-1:KT[_n-1]})
+        rk.update({st: _KT[st]})
         return rk
+    if _ctr == 2:
+        if st % 2 != 0:
+            temp = (st - 1) // 2
+            rk.update({temp: _KT[temp]})
+        else:
+            rk.update({st: _KT[st]})
+            rk.update({st+1: _KT[st+1]})
     for i in range(_ctr):
-        ind[i] = _n - 1 + i
+        ind[i] = st + i
+    if st % 2 == 0:
+        rk.update({st: _KT[st]})
+        del ind[0]
     while True:
         t = []
         for j in range(math.floor(len(ind)/2)):
@@ -121,7 +135,7 @@ def reveal_keys(_n, _ctr, _KT):
             break
         ind = t
     for x in range(len(ind)):
-        rk.update({ind[x]:_KT[ind[x]]})
+        rk.update({ind[x]: _KT[ind[x]]})
     return rk
 
 
@@ -165,7 +179,7 @@ def generate_merkle_tree_proof(_MT, _n, _i):
 if __name__ == '__main__':
     # In FairThunder optimistic contract, the pessimistic contract address has to be checksum address
     print(">> pessimistic contract address: ", Web3.toChecksumAddress(pe_contract_address))
-    KT = gen_sub_keys(n, mk)
+    KT = gen_sub_keys(n, mk_hash)
     print('>> KT: ', KT)
     key_group = KT[len(KT) - n:len(KT)]
     print('>> sub-keys: ', key_group)
@@ -185,19 +199,19 @@ if __name__ == '__main__':
     print('>> root_m: ', root_m)
     MTP = generate_merkle_tree_proof(MT, n, invalid_chunk_index)
     print('>> MTP: ', MTP)
-    # i is the chunk number in the receipt (i will be updated to contract as ctr)
-    i = ctr
+    # i is the chunk number in the receipt ((i-a+1) will be updated to contract as ctr)
+    i = XXX
     # Generate signature for deliverer
     VFD_hash = bytes.hex(Web3.soliditySha3(['uint256', 'address', 'address', 'bytes32', 'address'],
                                            [i, Web3.toChecksumAddress(ft_consumer_address),
                                             Web3.toChecksumAddress(ft_deliverer_address),
                                             root_m, Web3.toChecksumAddress(op_contract_address)]))
-    # if encode_defunct(text=PoD_hash), it will add a \n64 as the header
+    # if encode_defunct(text=VFD_hash), it will add a \n64 as the header
     VFD_message = encode_defunct(hexstr=VFD_hash)
     signature_VFD = web3.eth.account.sign_message(VFD_message, private_key=ft_deliverer_private_key)
     print(">> signature (for VFD proof): ", signature_VFD)
 
-    rk = reveal_keys(n, ctr, KT)
+    rk = reveal_keys(n, a, ctr, mk_hash)
     print('>> rk: ', rk)
 
     print(">> content_plain[1] (i.e., i=2): ", content[invalid_chunk_index - 1])

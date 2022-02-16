@@ -56,7 +56,7 @@ contract FairThunderPessimistic {
     }
     
     // Check if correct number (i.e., ctr) of sub-keys can be recovered
-    function validateRKeys(uint _n, uint _ctr, uint[] memory _erk_indexes) public pure returns (bool) {
+    function validateRKeys(uint _n, uint _a, uint _ctr, uint[] memory _erk_indexes) public pure returns (bool) {
         if ((_n == _ctr) && (_erk_indexes.length == 1) && (_erk_indexes[0] == 0)) {
             // (_n == _ctr) means that the deliverer delivers all the chunks
             // (_erk_indexes.length == 1) means that the provider reveals one key
@@ -66,7 +66,7 @@ contract FairThunderPessimistic {
         }
         uint height = log2_alg_floor(_n);
         uint[] memory chunks_index = new uint[](_ctr);
-        uint index = _n - 1;
+        uint index = _n + _a - 2;
         for (uint i = 0; i < _ctr; i++) {
             chunks_index[i] = index;
             index++;

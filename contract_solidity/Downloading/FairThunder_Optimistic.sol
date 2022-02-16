@@ -11,7 +11,7 @@ import "./altbn128.sol";
 
 // Abstract 'FairThunderPessimistic' contract
 contract FairThunderPessimistic {
-    function validateRKeys(uint, uint, uint[] memory) public returns (bool);
+    function validateRKeys(uint, uint, uint, uint[] memory) public returns (bool);
     function onChainParams(uint, uint, bytes32, BN128Curve.G1Point memory) public;
     function validatePoM(uint[] memory, bytes32[] memory, bytes memory, bytes32, FTU.MerkleProof[] memory, FTU.SubmittedERK[] memory, FTU.ERK[] memory, FTU.SubmittedRK[] memory, FTU.VPKEProof[] memory) public returns (bool);
     function () external payable;
@@ -66,6 +66,9 @@ contract FairThunderOptimistic{
     
     // The number of delivered chunks
     uint public ctr = 0;
+
+    // The start index (1-indexed) of request content
+    uint public a = 0;
     
     // The revealed encrypted elements' information for recovering ctr (ctr<=n) sub-keys
     FTU.ERK[] erk;
@@ -94,9 +97,11 @@ contract FairThunderOptimistic{
         assert(_payment_C >= _payment_P);
         assert(_payment_pf >= _payment_C*_n/2); // the penalty fee is required to be proportional to the (n*payment_C) so the provider cannot delibrately low it
         root_m = _root_m;       // store root_m
+        theta = _theta;         // store theta
         n = _n;                 // store n
         payment_P = _payment_P; // store payment_P
         payment_C = _payment_C; // store payment_C
+        payment_pf = _payment_pf; // store payment_pf
         inState(state.started);
     }
     
@@ -112,10 +117,12 @@ contract FairThunderOptimistic{
     }
     
     // Phase II: Deliver
-    function consume(BN128Curve.G1Point memory _vpk_consumer) payable public {
-        assert(msg.value >= n*payment_C);
+    function consume(BN128Curve.G1Point memory _vpk_consumer, uint _a) payable public {
+        assert(msg.value >= (n - _a + 1) * payment_C);
         require(theta > 0);
+        require(_a >= 1 && _a <= n);
         require(round == state.ready);
+        a = _a;                        // store a
         consumer = msg.sender;         // store pk_C
         vpk_consumer = _vpk_consumer;  // store vpk_consumer
         timeout_delivered = now + 10 minutes; // start the timer
@@ -127,7 +134,7 @@ contract FairThunderOptimistic{
         require(_i <= n);
         bytes32 VFDProof = FTU.prefixed(keccak256(abi.encodePacked(_i, consumer, msg.sender, root_m, this)));
         if (FTU.recoverSigner(VFDProof, _signature_C) == consumer) {
-            ctr = _i; // update ctr
+            ctr = _i - a + 1; // update ctr
             return true;
         }
         return false;
@@ -138,7 +145,7 @@ contract FairThunderOptimistic{
         require(now > timeout_delivered);
         require(ctr >= 0 && ctr <= n);
         // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill verifyVFDProof() 
-        // is executed (i.e., D claimed payment and update ctr)
+        // is executed (i.e., the deliverer D claimed payment and update ctr)
         if ((ctr > 0) && (ctr <= n)) {
             if (ctr == n) {
                 deliverer.transfer(payment_P*n);
@@ -155,7 +162,7 @@ contract FairThunderOptimistic{
         require(now < timeout_delivered);
         require(ctr >= 0 && ctr <= n);
         // if ctr is not updated (i.e., ctr == 0), the state will not be updated untill verifyVFDProof()
-        // is executed (i.e., D claimed payment and update ctr)
+        // is executed (i.e., the deliverer D claimed payment and update ctr)
         if ((ctr > 0) && (ctr <= n)) {
             if (ctr == n) {
                 deliverer.transfer(payment_P*n);
@@ -164,7 +171,7 @@ contract FairThunderOptimistic{
                 deliverer.transfer(payment_P*ctr);
             }
             inState(state.revealing);
-            selfdestruct(deliverer);
+            // selfdestruct(deliverer);
         }
     }
     
@@ -191,12 +198,12 @@ contract FairThunderOptimistic{
     function payout() payable public {
         require(round == state.revealed);
         require(now > timeout_dispute);
-        if((ctr > 0) && (ctr <= n)){
-            if(ctr == n){
-                provider.transfer(payment_C*n + payment_pf);
+        if((ctr > 0) && (ctr <= (n-a+1))){
+            if(ctr == (n-a+1)){
+                provider.transfer(payment_C*ctr + payment_pf);
             }else{
                 provider.transfer(payment_C*ctr + payment_pf);
-                consumer.transfer(payment_C*(n-ctr));
+                consumer.transfer(payment_C*(n-a+1-ctr));
             }
             inState(state.sold);
         }
@@ -206,6 +213,7 @@ contract FairThunderOptimistic{
     function reset() public {
         require(msg.sender == provider);
         require(round == state.sold || round == state.not_sold);
+        a = 0;
         ctr = 0;
         timeout_delivered = 0;
         timeout_dispute = 0;
@@ -216,7 +224,7 @@ contract FairThunderOptimistic{
     }
     
     function refund() public {
-        consumer.transfer(n * payment_C + payment_pf);
+        consumer.transfer((n-a+1) * payment_C + payment_pf);
         inState(state.not_sold);
     }
     
@@ -227,7 +235,7 @@ contract FairThunderOptimistic{
         for (uint i = 0; i < erk.length; i++) {
             erk_indexes[i] = erk[i].position;
         }
-        if (!FTP.validateRKeys(n, ctr, erk_indexes)) {
+        if (!FTP.validateRKeys(n, a, ctr, erk_indexes)) {
             // !validateRKeys returns true (i.e, validateRKeys returns false) means that the revealed keys
             // cannot recover the desired number of decrption keys, namely P behaves dishonestly
             refund();
