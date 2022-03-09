@@ -7,7 +7,7 @@ public class Config {
     public static final String CONSUMER_ADDRESS = "127.0.0.1";
     public static final int CONSUMER_PORT = 8666;
 
-    // Total number of content chunks in streaming
+    // Total number of content chunks in downloading
     public static final int CHUNKS = 8;
 
     // Max frame length
